@@ -1,17 +1,15 @@
-/*
-ansiparser.converter
-~~~~~~~~~~~~~~
+/// ansiparser.converter
+/// ----------
+///
+/// This module provides a converter to convert InterConverted to HTML or string.
+library;
 
-This module provides a converter to convert InterConverted to HTML or string.
-*/
+import 'package:html/dom.dart' as html_dom;
 
-import 'package:html/dom.dart' as html;
+import './structures.dart';
 
-import 'structures.dart';
-
-
+/// Convert SGR attributes to CSS class.
 String sgrAttributesToCss(SgrAttributes sgrAttributes) {
-  // Convert SGR attributes to CSS class.
   final fontStyles = sgrAttributes.style.join(' ');
   final colorForeground = sgrAttributes.foreground;
   final colorBackground = sgrAttributes.background;
@@ -22,19 +20,20 @@ String sgrAttributesToCss(SgrAttributes sgrAttributes) {
   return cssClass.where((s) => s.isNotEmpty).join(' ');
 }
 
-html.Element toHtml(InterConverted interConverted, {bool placeholder = false}) {
-  // Convert InterConverted to HTML
-
+/// Convert InterConverted to HTML
+html_dom.Element toHtml(InterConverted interConverted,
+    {bool placeholder = false}) {
+  //
   if (!interConverted.validate()) {
     throw ArgumentError("interConverted is invalid.");
   }
 
-  final lineDiv = html.Element.tag('div');
+  final lineDiv = html_dom.Element.tag('div');
   lineDiv.classes.add('line');
 
   // If empty, treat as a newline.
   if (interConverted.empty()) {
-    final newlineDiv = html.Element.tag('br');
+    final newlineDiv = html_dom.Element.tag('br');
     newlineDiv.classes.add('line');
 
     return newlineDiv;
@@ -48,7 +47,7 @@ html.Element toHtml(InterConverted interConverted, {bool placeholder = false}) {
     final item = interConverted.text[index];
 
     // if ignore placeholder
-    if (item is WCharPH && placeholder == true) {
+    if (item is WCharPH && placeholder) {
       // replace placeholders with spaces
       filteredChar.add(" ");
       filteredStyle.add(interConverted.styles[index]);
@@ -68,7 +67,7 @@ html.Element toHtml(InterConverted interConverted, {bool placeholder = false}) {
   for (var style in filteredStyle) {
     // Until a different style is encountered.
     if (lastStyle != style) {
-      final tmpSpan = html.Element.tag('span');
+      final tmpSpan = html_dom.Element.tag('span');
       tmpSpan.classes.add(sgrAttributesToCss(lastStyle));
       tmpSpan.text = lineString.substring(startIndex, currentIndex);
 
@@ -82,18 +81,18 @@ html.Element toHtml(InterConverted interConverted, {bool placeholder = false}) {
   }
 
   // Last element
-  final tmpSpan = html.Element.tag('span');
+  final tmpSpan = html_dom.Element.tag('span');
   tmpSpan.classes.add(sgrAttributesToCss(lastStyle));
   tmpSpan.text = lineString.substring(startIndex, currentIndex);
 
   lineDiv.append(tmpSpan);
-  
+
   return lineDiv;
 }
 
+/// Convert InterConverted to string
 String toString(InterConverted interConverted, {bool placeholder = false}) {
-  // Convert InterConverted to string
-
+  //
   if (!interConverted.validate()) {
     throw ArgumentError("interConverted is invalid.");
   }
@@ -106,9 +105,9 @@ String toString(InterConverted interConverted, {bool placeholder = false}) {
   // Process placeholders for wide characters.
   final filteredChar = <String>[];
 
-  for (var item in interConverted.text) {
+  for (final item in interConverted.text) {
     // if ignore placeholder
-    if (item is WCharPH && placeholder == true) {
+    if (item is WCharPH && placeholder) {
       // replace placeholders with spaces
       filteredChar.add(" ");
     } else if (item is! WCharPH) {
