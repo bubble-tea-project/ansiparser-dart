@@ -1,26 +1,19 @@
-/*
-ansiparser.structures
-~~~~~~~~~~~~~~~~~~~
-
-Data structures used in ansiparser.
-*/
+/// ansiparser.structures
+/// ----------
+///
+/// Data structures used in ansiparser.
+library;
 
 import 'package:collection/collection.dart';
 
+/// Placeholder for wide characters.
+class WCharPH {}
 
-class WCharPH {
-  // Placeholder for wide characters.
-  WCharPH();
-}
-
+/// A class to represent the SGR (Select Graphic Rendition) attributes for text formatting.
 class SgrAttributes {
-  // A class to represent the SGR (Select Graphic Rendition) attributes for text formatting.
-
   Set<String> style = {};
   String background = '';
   String foreground = '';
-
-  SgrAttributes();
 
   @override
   bool operator ==(Object other) {
@@ -35,9 +28,8 @@ class SgrAttributes {
   @override
   int get hashCode => Object.hash(style, background, foreground);
 
+  /// Create a deep copy
   SgrAttributes copy() {
-    // Deep copy
-
     SgrAttributes copyInstance = SgrAttributes();
 
     // Shallow copy for Set<String> (String is immutable objects)
@@ -49,33 +41,31 @@ class SgrAttributes {
     return copyInstance;
   }
 
+  /// Remove all elements from the SgrAttributes.
   void clear() {
-    // Remove all elements from the SgrAttributes.
     style.clear();
     background = '';
     foreground = '';
   }
 
+  /// Return true if all elements are empty, otherwise return false.
   bool empty() {
-    // Return true if all elements are empty, otherwise return false.
     return style.isEmpty && background.isEmpty && foreground.isEmpty;
   }
 }
 
+/// Single-line intermediate conversion of ANSI escape codes.
 class InterConverted {
-  // Single-line intermediate conversion of ANSI escape codes.
-
+  /// Contains `String` or `WCharPH` elements.
   List<Object> text = [];
+
   List<SgrAttributes> styles = [];
 
-  InterConverted();
-
+  /// Create a deep copy
   InterConverted copy() {
-    // Method to create a deep copy of the InterConverted instance
-
     InterConverted copyInstance = InterConverted();
 
-    // Shallow copy for text (String is immutable objects and WCharPH no data)
+    // Shallow copy for text (String is immutable objects and WCharPH is placeholder)
     copyInstance.text = List<Object>.of(this.text);
 
     // Deep copy styles
@@ -86,19 +76,19 @@ class InterConverted {
     return copyInstance;
   }
 
+  /// Remove all elements from the InterConverted.
   void clear() {
-    // Remove all elements from the InterConverted.
     text.clear();
     styles.clear();
   }
 
+  /// Return True if the InterConverted is empty, False otherwise.
   bool empty() {
-    // Return true if the InterConverted is empty, otherwise return false.
     return text.isEmpty && styles.isEmpty;
   }
 
+  /// Return True if the text and styles in InterConverted have the same length; otherwise, return False.
   bool validate() {
-    // Return true if the text and styles in InterConverted have the same length; otherwise, return false.
     return text.length == styles.length;
   }
 }

@@ -10,6 +10,7 @@ environment:
 dependencies:
   html: ^0.15.4
   east_asian_width: ^1.0.1
+  collection: ^1.19.1
   # path: ^1.8.0
 
 dev_dependencies:
