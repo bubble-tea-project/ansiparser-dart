@@ -1,9 +1,8 @@
-/*
-ansiparser.screen_parser
-~~~~~~~~~~~~~~
-
-This module implements the parser that converts sequences into parsed_screen (a collection of InterConverted).
-*/
+/// ansiparser.screen_parser
+/// ----------
+///
+/// This module implements the parser that converts sequences into parsed_screen (a collection of InterConverted).
+library;
 
 import 'dart:collection';
 import 'dart:core';
@@ -15,10 +14,11 @@ import './sequence_utils.dart' show CSIChecker;
 import './structures.dart';
 import './utils.dart' as utils;
 
+/// Apply backspace '\x08' to a string.
 String applyBackspace(String string) {
-  /// Apply backspace '\x08' to a string.
+  //
   List<String> result = [];
-  for (var char in string.split('')) {
+  for (final char in string.split('')) {
     if (char == '\b' && result.isNotEmpty) {
       result.removeLast();
     } else {
@@ -28,9 +28,8 @@ String applyBackspace(String string) {
   return result.join('');
 }
 
+/// Split the string by ANSI escape sequences.
 List<String> splitByAnsi(String string) {
-  /// Split the string by ANSI escape sequences.
-
   return utils.splitWithDelimiters(string, re_pattern.ansiEscape);
 }
 
@@ -49,21 +48,31 @@ class ScreenParser {
 
   ScreenParser({this.screenHeight = 24, this.screenWidth = 80});
 
+  /// Split string by '\x1B[2J'(Erase in Display).
   List<String> _splitByEd(String string) {
-    /// Split string by '\x1B[2J'(Erase in Display).
     return utils.splitWithDelimiters(
         string, re_pattern.eraseDisplayClearScreen);
   }
 
+  /// Split string by newline("\r\n", "\n", "\r")
   List<String> _splitByNewline(String string) {
     return utils.splitWithDelimiters(string, RegExp(r'(\r\n|\n|\r)'));
   }
 
+  /// Parse the string only; remove all ANSI sequences.
   String _parseStrOnly(bool peek) {
-    /// Parse the string only; remove all ANSI sequences.
-    if (screenBuffer.isEmpty) throw Exception("screen_buffer is empty");
+    //
+    if (screenBuffer.isEmpty) {
+      throw Exception("screen_buffer is empty");
+    }
 
-    final rawScreen = peek ? screenBuffer.first : screenBuffer.removeFirst();
+    final List<String> rawScreen;
+    if (peek) {
+      rawScreen = screenBuffer.first;
+    } else {
+      rawScreen = screenBuffer.removeFirst();
+    }
+
     final csiChecker = CSIChecker();
 
     var parsedString = '';
@@ -78,15 +87,19 @@ class ScreenParser {
     return parsedString;
   }
 
+  /// Parse the single line that is split by a newline character.
   (InterConverted, List<InterConverted>) _parseLine(
       String rawLine, List<InterConverted> parsedScreen) {
+    //
     final csiChecker = CSIChecker();
     final sequenceParser = SequenceParser();
 
     InterConverted interConverted;
     if (currentLineIndex <= parsedScreen.length - 1) {
+      // if can access current_parsed_screen, use old
       interConverted = parsedScreen[currentLineIndex];
     } else {
+      // or use new
       interConverted = InterConverted();
     }
 
@@ -97,53 +110,63 @@ class ScreenParser {
         currentSgrAttributes =
             sequenceParser.parseSgr(sequenceStr, currentSgrAttributes);
       }
+
       // Newline
       else if (sequenceStr == "\r\n" ||
           sequenceStr == "\n" ||
           sequenceStr == "\r") {
         final result = sequenceParser.parseNewline(sequenceStr, interConverted,
             currentIndex, parsedScreen, currentLineIndex);
+
         interConverted = result["interConverted"];
         currentIndex = result["currentIndex"];
         parsedScreen = result["parsedScreen"];
         currentLineIndex = result["currentLineIndex"];
       }
+
       // Text
       else if (!csiChecker.isCsi(sequenceStr)) {
-        int tmpCurrentindex;
-        (interConverted, tmpCurrentindex) = sequenceParser.parseText(
+        final result = sequenceParser.parseText(
             sequenceStr, interConverted, currentSgrAttributes, currentIndex);
-        this.currentIndex = tmpCurrentindex;
+
+        interConverted = result.$1;
+        this.currentIndex = result.$2;
       }
+
       // Erase in Line
       else if (csiChecker.isElSequence(sequenceStr)) {
         interConverted =
             sequenceParser.parseEl(sequenceStr, interConverted, currentIndex);
       }
+
       // Erase in Display
       else if (csiChecker.isEdSequence(sequenceStr)) {
         (interConverted, parsedScreen) = sequenceParser.parseEd(sequenceStr,
             interConverted, currentIndex, parsedScreen, currentLineIndex);
       }
+
       // Cursor Position
       else if (csiChecker.isCupSequence(sequenceStr)) {
         final result = sequenceParser.parseCup(sequenceStr, interConverted,
             currentIndex, parsedScreen, currentLineIndex);
+
         interConverted = result["interConverted"];
         currentIndex = result["currentIndex"];
         parsedScreen = result["parsedScreen"];
         currentLineIndex = result["currentLineIndex"];
       }
     }
+
     return (interConverted, parsedScreen);
   }
 
   List<InterConverted> _parse({required bool peek}) {
-    if (screenBuffer.isEmpty) throw Exception("screen_buffer is empty");
+    if (screenBuffer.isEmpty) {
+      throw Exception("screen_buffer is empty");
+    }
 
     List<String> rawScreen;
     List<InterConverted> parsedScreen;
-
     if (peek == true) {
       // Get the first element of the screen buffer without removing it
       rawScreen = screenBuffer.first;
@@ -177,11 +200,12 @@ class ScreenParser {
         currentLineIndex--;
       }
     }
+
     return parsedScreen;
   }
 
+  /// Initialize from an existing `parsed_screen`.
   void fromParsedScreen(List<InterConverted> parsedScreen) {
-    /// Initialize from `parsed_screen`.
     if (parsedScreen.isEmpty) {
       throw Exception("parsedScreen is Empty");
     } else {
@@ -189,12 +213,14 @@ class ScreenParser {
     }
   }
 
+  /// return screen_buffer
   Queue<List<String>>? buffer() {
     return screenBuffer.isEmpty ? null : screenBuffer;
   }
 
+  /// Add new strings to screen_buffer.
   void put(String string) {
-    /// Add new strings to screen_buffer.
+    //
     var rawScreens = _splitByEd(applyBackspace(string));
     for (var rawScreen in rawScreens) {
       if (rawScreen == '\x1B[2J') {
@@ -212,48 +238,49 @@ class ScreenParser {
     }
   }
 
+  /// Remove current screen_buffer and parse.
   void parse() {
-    /// Remove current screen_buffer and parse.
     if (screenBuffer.isNotEmpty) {
       currentParsedScreen = _parse(peek: false);
     }
   }
 
+  /// If the current parsed screen is full.
   bool full() {
-    /// If the current parsed screen is full.
     return currentParsedScreen.length >= screenHeight;
   }
 
+  /// Clear current parsed_screen and index.
   void clear() {
-    /// Clear current parsed_screen and index.
     currentParsedScreen = [];
     currentLineIndex = 0;
     currentIndex = 0;
   }
 
+  /// If the current screen buffer is finished (encountered 'clear entire screen').
   bool finished() {
-    /// If the current screen buffer is finished (encountered 'clear entire screen').
     return screenBuffer.length >= 2;
   }
 
+  /// If screen_buffer is empty.
   bool bufferEmpty() {
-    /// If screen_buffer is empty.
     return screenBuffer.isEmpty;
   }
 
+  /// Clear screen_buffer.
   void clearBuffer() {
-    /// Clear screen_buffer.
     screenBuffer.clear();
   }
 
+  /// Clear the old (finished) screen_buffer.
   void clearOldBuffer() {
     while (finished()) {
       screenBuffer.removeFirst();
     }
   }
 
+  /// Return underlying current `parsed_screen`.
   List<InterConverted> getParsedScreen() {
-    /// Return underlying current `parsed_screen`.
     return currentParsedScreen
         .map((interConverted) => interConverted.copy())
         .toList();
@@ -263,22 +290,24 @@ class ScreenParser {
     return _parseStrOnly(true);
   }
 
+  /// Convert the current `parsed_screen` to a formatted string.
+  /// If `peek` is True, peek at the current buffer and convert it to a formatted string.
   List<String> toFormattedString({bool peek = false}) {
-    /// Convert the current `parsed_screen` to a formatted string.
-    /// If `peek` is True, peek at the current buffer and convert it to a formatted string.
     var parsedScreen = peek ? _parse(peek: peek) : currentParsedScreen;
+
     return parsedScreen
         .map((parsedLine) => converter.toString(parsedLine))
         .toList();
   }
 
+  /// Convert the current `parsed_screen` to HTML.
+  /// If `peek` is True, peek at the current buffer and convert it to HTML.
   List<String> toHtml({bool peek = false}) {
-    /// Convert the current `parsed_screen` to HTML.
-    /// If `peek` is True, peek at the current buffer and convert it to HTML.
     var parsedScreen = peek ? _parse(peek: peek) : currentParsedScreen;
     var htmlLines = parsedScreen
         .map((parsedLine) => converter.toHtml(parsedLine).outerHtml)
         .toList();
+
     return htmlLines;
   }
 }
