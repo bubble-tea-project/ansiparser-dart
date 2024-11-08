@@ -1,38 +1,36 @@
-/*
-ansi_to_html.sequence_parser
-~~~~~~~~~~~~~~~~~~~
+/// ansiparser.sequence_parser
+/// ----------
+///
+/// This module implements the underlying parser that converts sequences to InterConverted.
+library;
 
-This module implements the underlying parser that converts sequences to InterConverted.
-*/
-
-import './utils.dart' as utils;
-import './structures.dart';
-import './sequence_utils.dart' show ParametersExtractor;
 import 'package:east_asian_width/east_asian_width.dart' as eaw;
 
+import './structures.dart';
+import './sequence_utils.dart' show ParametersExtractor;
+import './utils.dart' as utils;
+
+/// Convert SGR parameters to attributes.
 SgrAttributes sgrParametersToAttributes(
     List<int> parameters, SgrAttributes sgrAttributes) {
-  for (var parameter in parameters) {
+  //
+  for (final parameter in parameters) {
     switch (parameter) {
       case 0:
         // Reset or normal
         sgrAttributes.clear();
-        break;
 
       case (>= 1 && <= 9) || (>= 22 && <= 29):
         // font styles
         sgrAttributes.style.add(utils.sgrMap[parameter]!);
-        break;
 
       case (>= 30 && <= 37) || (>= 90 && <= 97):
         // Set foreground color
         sgrAttributes.foreground = utils.sgrMap[parameter]!;
-        break;
 
       case (>= 40 && <= 47) || (>= 100 && <= 107):
         // Set background color
         sgrAttributes.background = utils.sgrMap[parameter]!;
-        break;
 
       default:
         throw UnimplementedError('Not supported yet, parameter=$parameter');
@@ -43,8 +41,6 @@ SgrAttributes sgrParametersToAttributes(
 }
 
 class SequenceParser {
-  SequenceParser();
-
   (InterConverted, int) _processChar(
       String char,
       String mode,
@@ -87,23 +83,19 @@ class SequenceParser {
           interConverted.styles.addAll(List<SgrAttributes>.generate(
               2, (_) => currentSgrAttributes.copy()));
 
-          return (
-            interConverted,
-            currentIndex + 2
-          ); // +2 because a placeholder is appended
+          // +2 because a placeholder is appended
+          return (interConverted, currentIndex + 2);
         } else {
           // new char is narrow
           interConverted.text.add(char);
           interConverted.styles.add(currentSgrAttributes.copy());
 
-          return (
-            interConverted,
-            currentIndex + 1
-          ); // +1 because a placeholder is not needed
+          // +1 because a placeholder is not needed
+          return (interConverted, currentIndex + 1);
         }
 
       case "overwrite":
-        var currentChar = interConverted.text[currentIndex];
+        final currentChar = interConverted.text[currentIndex];
 
         if (isNewWide) {
           // new char is wide
@@ -137,10 +129,8 @@ class SequenceParser {
                 List.generate(2, (_) => currentSgrAttributes.copy()));
           }
 
-          return (
-            interConverted,
-            currentIndex + 2
-          ); // +2 because a placeholder is appended
+          // +2 because a placeholder is appended
+          return (interConverted, currentIndex + 2);
         } else {
           // new char is narrow
           if (currentChar is WCharPH) {
@@ -160,10 +150,8 @@ class SequenceParser {
             interConverted.styles[currentIndex] = currentSgrAttributes.copy();
           }
 
-          return (
-            interConverted,
-            currentIndex + 1
-          ); // +1 because a placeholder is not needed
+          // +1 because a placeholder is not needed
+          return (interConverted, currentIndex + 1);
         }
 
       default:
@@ -171,6 +159,7 @@ class SequenceParser {
     }
   }
 
+  /// Parse sequence only containing text.
   (InterConverted, int) parseText(
       String sequence,
       InterConverted interConverted,
@@ -192,10 +181,10 @@ class SequenceParser {
       if (currentIndex > maxIndex) {
         // add new
         (interConverted, currentIndex) = _processChar(
-             char,"add", interConverted, currentSgrAttributes, currentIndex);
+            char, "add", interConverted, currentSgrAttributes, currentIndex);
       } else {
         // overwrite
-        (interConverted, currentIndex) = _processChar( char,"overwrite",
+        (interConverted, currentIndex) = _processChar(char, "overwrite",
             interConverted, currentSgrAttributes, currentIndex);
       }
     }
@@ -203,14 +192,19 @@ class SequenceParser {
     return (interConverted, currentIndex);
   }
 
+  /// Parse "Select Graphic Rendition" sequence.
   SgrAttributes parseSgr(String sequence, SgrAttributes currentSgrAttributes) {
+    //
     ParametersExtractor extractor = ParametersExtractor();
     List<int> parameters = extractor.extractSgr(sequence);
+
     return sgrParametersToAttributes(parameters, currentSgrAttributes);
   }
 
+  /// Parse "Erase in Line" sequence.
   InterConverted parseEl(
       String sequence, InterConverted interConverted, int currentIndex) {
+    // Cursor position does not change.
     var extracter = ParametersExtractor();
     var parameter = extracter.extractEl(sequence);
 
@@ -220,36 +214,34 @@ class SequenceParser {
         // include cursor char
         interConverted.text = interConverted.text.sublist(0, currentIndex);
         interConverted.styles = interConverted.styles.sublist(0, currentIndex);
-        break;
 
       case 1:
         // If n is 1, clear from cursor to beginning of the line.
         // include cursor char
-        var test = interConverted.text.runtimeType;
-        interConverted.text.replaceRange(
-            0, currentIndex + 1, List.generate(currentIndex + 1, (_) => " ")); // space
+        interConverted.text.replaceRange(0, currentIndex + 1,
+            List.generate(currentIndex + 1, (_) => " ")); // space
         interConverted.styles.replaceRange(0, currentIndex + 1,
             List.generate(currentIndex + 1, (_) => SgrAttributes()));
-        break;
 
       case 2:
         // If n is 2, clear entire line.
         interConverted.clear();
-        break;
 
       default:
-        throw StateError("Invalid parameter.");
+        throw ArgumentError("Invalid parameter.");
     }
 
     return interConverted;
   }
 
+  /// Parse "Erase in Display" sequence.
   (InterConverted, List<InterConverted>) parseEd(
       String sequence,
       InterConverted interConverted,
       int currentIndex,
       List<InterConverted> parsedScreen,
       int currentLineIndex) {
+    //
     var extracter = ParametersExtractor();
     var parameter = extracter.extractEd(sequence);
 
@@ -257,10 +249,10 @@ class SequenceParser {
       case 0:
         // If n is 0 (or missing), clear from cursor to end of screen.
         // Cursor position does not change.
-        parsedScreen = parsedScreen.sublist(0, currentLineIndex);
+        parsedScreen = parsedScreen.sublist(0, currentLineIndex + 1);
+
         interConverted.text = interConverted.text.sublist(0, currentIndex);
         interConverted.styles = interConverted.styles.sublist(0, currentIndex);
-        break;
 
       case 1:
         // If n is 1, clear from cursor to beginning of the screen.
@@ -272,21 +264,24 @@ class SequenceParser {
         // space
         interConverted.styles.replaceRange(0, currentIndex + 1,
             List.generate(currentIndex + 1, (_) => SgrAttributes()));
-        break;
 
       case 2:
         // If n is 2, clear entire screen.
         parsedScreen.clear();
         interConverted.clear();
-        break;
+
+      case 3:
+        // If n is 3, clear entire screen and delete all lines saved in the scrollback buffer
+        throw UnimplementedError();
 
       default:
-        throw StateError("Invalid parameter.");
+        throw ArgumentError("Invalid parameter.");
     }
 
     return (interConverted, parsedScreen);
   }
 
+  /// Parse "Cursor Position" sequence.
   Map<String, dynamic> parseCup(
     String sequence,
     InterConverted interConverted,
@@ -294,8 +289,7 @@ class SequenceParser {
     List<InterConverted> parsedScreen,
     int currentLineIndex,
   ) {
-    // Parse "Cursor Position" sequence.
-
+    //
     var extracter = ParametersExtractor();
     var parameter = extracter.extractCup(sequence);
 
@@ -336,6 +330,7 @@ class SequenceParser {
     };
   }
 
+  /// Parse "newline("\r\n", "\n", "\r")" sequence.
   Map<String, dynamic> parseNewline(
     String sequence,
     InterConverted interConverted,
@@ -343,8 +338,7 @@ class SequenceParser {
     List<InterConverted> parsedScreen,
     int currentLineIndex,
   ) {
-    // Parse "newline("\r\n", "\n", "\r")" sequence.
-
+    //
     if (sequence != "\r\n" && sequence != "\n" && sequence != "\r") {
       throw ArgumentError("Invalid newline sequence.");
     }
