@@ -2,125 +2,166 @@ import 'package:test/test.dart';
 import 'package:ansiparser/src/sequence_parser.dart';
 import 'package:ansiparser/src/structures.dart';
 
-
 void main() {
-  // Fixtures
-  InterConverted createInterConverted() => InterConverted();
-  SgrAttributes createSgrAttributes() => SgrAttributes();
-  SequenceParser createSequenceParser() => SequenceParser();
+  test('test_sgr_parameters_to_attributes_clear', () {
+    final sgrAttributes = SgrAttributes()
+      ..style = {'bold', 'italic'}
+      ..foreground = 'fg_black'
+      ..background = 'bg_black';
 
-  group('_sgrParametersToAttributes Tests', () {
-    test('testSgrParametersToAttributesClear', () {
-      var sgrAttributes = SgrAttributes()
-        ..style = {"bold", "italic"}
-        ..foreground = "fg_black"
-        ..background = "bg_black";
+    final parameters = [0]; // Reset or normal
+    final result = sgrParametersToAttributes(parameters, sgrAttributes);
 
-      var parameters = [0]; // Reset or normal
-      var result = sgrParametersToAttributes(parameters, sgrAttributes);
-      expect(result.style, isEmpty);
-      expect(result.foreground, equals(""));
-      expect(result.background, equals(""));
-    });
-
-    test('testSgrParametersToAttributes', () {
-      var sgrAttributes = SgrAttributes();
-      var parameters = [31]; // Set foreground color to sgr_31
-      var result = sgrParametersToAttributes(parameters, sgrAttributes);
-      expect(result.foreground, equals("fg_red"));
-    });
+    expect(result.style, isEmpty);
+    expect(result.foreground, isEmpty);
+    expect(result.background, isEmpty);
   });
 
-  group('SequenceParser Tests', () {
-    final sequenceParser = createSequenceParser();
-    final interConverted = createInterConverted();
-    final sgrAttributes = createSgrAttributes();
+  test('test_sgr_parameters_to_attributes', () {
+    final sgrAttributes = SgrAttributes();
+    final parameters = [31]; // Set foreground color
+    final result = sgrParametersToAttributes(parameters, sgrAttributes);
 
-    test('testParseTextAdd', () {
-      const text = "Hello";
-      var (inter_converted, currentIndex) = sequenceParser.parseText(text, interConverted, sgrAttributes, 0);
+    expect(result.foreground, equals('fg_red'));
+  });
 
-      expect(inter_converted.text, equals(text.split("")));
-      expect(inter_converted.styles.length, equals(text.length));
-      expect(currentIndex, equals(text.length));
+  group("Parse...", () {
+    late SequenceParser sequenceParser;
+    late InterConverted interConverted;
+    late SgrAttributes sgrAttributes;
+
+    setUp(() {
+      sequenceParser = SequenceParser();
+      interConverted = InterConverted();
+      sgrAttributes = SgrAttributes();
     });
 
-    test('testParseTextOverwrite', () {
-      var interConverted = InterConverted()
-        ..text = "abcde".split("")
-        ..styles = List.filled(5, SgrAttributes());
+    group('ParseText', () {
+      test('test_add', () {
+        final text = 'Hello';
+        int currentIndex;
+        (interConverted, currentIndex) =
+            sequenceParser.parseText(text, interConverted, sgrAttributes, 0);
 
-      const text = "XYZ";
-      var (inter_converted, currentIndex) = sequenceParser.parseText(text, interConverted, sgrAttributes, 1);
-      expect(inter_converted.text, equals("aXYZe".split("")));
-      expect(currentIndex, equals(4));
+        expect(interConverted.text, equals(text.split('')));
+        expect(interConverted.styles.length, equals(text.length));
+        expect(currentIndex, equals(text.length));
+      });
+
+      test('test_overwrite', () {
+        interConverted.text.addAll(['a', 'b', 'c', 'd', 'e']);
+        interConverted.styles = List.generate(5, (_) => SgrAttributes());
+
+        final text = 'XYZ';
+        int currentIndex;
+        (interConverted, currentIndex) =
+            sequenceParser.parseText(text, interConverted, SgrAttributes(), 1);
+
+        expect(interConverted.text, equals(['a', 'X', 'Y', 'Z', 'e']));
+        expect(currentIndex, equals(4)); // index at 'e'
+      });
     });
 
-    test('testParseSgr', () {
-      const sequence = "\x1b[31m";
-      var result = sequenceParser.parseSgr(sequence, sgrAttributes);
-      expect(result.foreground, equals("fg_red"));
+    test('test_parse_sgr', () {
+      final sequence = '\x1b[31m'; // Foreground color, red
+      final result = sequenceParser.parseSgr(sequence, sgrAttributes);
+
+      expect(result.foreground, equals('fg_red'));
     });
 
-    test('testParseElClearToEndOfLine', () {
-      var interConverted = InterConverted()
-        ..text = "Hello World".split("")
-        ..styles = List.filled(11, SgrAttributes());
+    group('ParseEl', () {
+      test('test_to_end_of_line', () {
+        interConverted.text.addAll('Hello World'.split(''));
+        interConverted.styles =
+            List.generate(interConverted.text.length, (_) => SgrAttributes());
 
-      var result = sequenceParser.parseEl("\x1b[0K", interConverted, 5);
-      expect(result.text, equals("Hello".split("")));
+        final result = sequenceParser.parseEl('\x1b[0K', interConverted, 5);
+
+        expect(result.text, equals('Hello'.split('')));
+      });
+
+      test('test_to_start_of_line', () {
+        interConverted.text.addAll('Hello World'.split(''));
+        interConverted.styles =
+            List.generate(interConverted.text.length, (_) => SgrAttributes());
+
+        final result = sequenceParser.parseEl('\x1b[1K', interConverted, 5);
+
+        expect(result.text, equals('      World'.split('')));
+      });
+
+      test('test_entire_line', () {
+        interConverted.text.addAll('Hello World'.split(''));
+        interConverted.styles =
+            List.generate(interConverted.text.length, (_) => SgrAttributes());
+
+        final result = sequenceParser.parseEl('\x1b[2K', interConverted, 5);
+
+        expect(result.text, isEmpty);
+      });
     });
 
-    test('testParseElClearToStartOfLine', () {
-      var interConverted = InterConverted()
-        ..text.addAll("Hello World".split(""))
-        ..styles = List.generate(11, (_) => SgrAttributes());
+    group('ParseEd', () {
+      late List<InterConverted> parsedScreen;
 
-      
-      var result = sequenceParser.parseEl("\x1b[1K", interConverted, 5);
-      expect(result.text, equals("      World".split("")));
+      setUp(() {
+        //
+        parsedScreen = () {
+          interConverted.text.addAll('Hello World'.split(''));
+          interConverted.styles =
+              List.generate(interConverted.text.length, (_) => SgrAttributes());
+
+          return [interConverted.copy(), interConverted.copy()];
+        }();
+      });
+
+      test('test_to_end_of_screen', () {
+        interConverted = parsedScreen[0];
+
+        (interConverted, parsedScreen) = sequenceParser.parseEd(
+            '\x1b[0J', interConverted, 5, parsedScreen, 0);
+
+        expect(interConverted.text, equals('Hello'.split('')));
+        expect(parsedScreen.length, equals(1));
+      });
+
+      test('test_to_start_of_screen', () {
+        interConverted = parsedScreen[1];
+
+        (interConverted, parsedScreen) = sequenceParser.parseEd(
+            '\x1b[1J', interConverted, 5, parsedScreen, 1);
+
+        expect(interConverted.text, equals('      World'.split('')));
+        expect(parsedScreen.length, equals(2));
+      });
+
+      test('test_entire_screen', () {
+        interConverted = parsedScreen[0];
+
+        (interConverted, parsedScreen) = sequenceParser.parseEd(
+            '\x1b[2J', interConverted, 5, parsedScreen, 0);
+
+        expect(interConverted.text, isEmpty);
+        expect(parsedScreen, isEmpty);
+      });
     });
 
-    test('testParseElClearEntireLine', () {
-      var interConverted = InterConverted()
-        ..text = "Hello World".split("")
-        ..styles = List.generate(11, (_) => SgrAttributes());
+    test('test_parse_cup', () {
+      final parsedScreen = [interConverted];
 
-      var result = sequenceParser.parseEl("\x1b[2K", interConverted, 5);
-      expect(result.text, isEmpty);
-    });
+      final result = sequenceParser.parseCup(
+          '\x1b[10;10H', interConverted, 0, parsedScreen, 0);
 
-    test('testParseEdClearToEndOfScreen', () {
-      var interConverted = InterConverted()
-        ..text = "Hello World".split("")
-        ..styles = List.generate(11, (_) => SgrAttributes());
-      var parsedScreen = [interConverted];
-
-      var (inter_converted, parsedScreen_) = sequenceParser.parseEd("\x1b[0J", interConverted, 5, parsedScreen, 0);
-      expect(inter_converted.text, equals("Hello".split("")));
-      expect(parsedScreen_.isEmpty, isTrue);
-    });
-
-    test('testParseEdClearEntireScreen', () {
-      var interConverted = InterConverted()
-        ..text = "Hello World".split("");
-      var parsedScreen = [interConverted];
-
-      var (inter_converted, parsedScreen_) = sequenceParser.parseEd("\x1b[2J", interConverted, 5, parsedScreen, 0);
-      expect(inter_converted.text, isEmpty);
-      expect(parsedScreen_.isEmpty, isTrue);
-    });
-
-    test('testParseCup', () {
-      var parsedScreen = [interConverted];
-      var result = sequenceParser.parseCup("\x1b[10;10H", interConverted, 0, parsedScreen, 0);
       expect(result['currentIndex'], equals(9));
       expect(result['currentLineIndex'], equals(9));
     });
 
-    test('testParseNewline', () {
-      var parsedScreen = [interConverted];
-      var result = sequenceParser.parseNewline("\r\n", interConverted, 0, parsedScreen, 0);
+    test('test_parse_newline', () {
+      final parsedScreen = [interConverted];
+
+      final result = sequenceParser.parseNewline(
+          '\r\n', interConverted, 0, parsedScreen, 0);
+
       expect(result['currentIndex'], equals(0));
       expect(result['currentLineIndex'], equals(1));
     });

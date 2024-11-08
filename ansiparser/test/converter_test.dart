@@ -3,62 +3,66 @@ import 'package:ansiparser/src/converter.dart';
 import 'package:ansiparser/src/structures.dart';
 
 void main() {
-  group('Converter Tests', () {
-    test('testSgrAttributesToCss', () {
-      // Prepare test SGR attributes
-      final sgrAttributes = SgrAttributes()
-        ..style = {'sgr_1'}
-        ..foreground = 'sgr_30'
-        ..background = 'sgr_40';
+  test('test_sgr_attributes_to_css', () {
+    final sgrAttributes = SgrAttributes()
+      ..style = {'bold'}
+      ..foreground = 'fg_blue'
+      ..background = 'bg_white';
 
-      final cssClass = sgrAttributesToCss(sgrAttributes);
+    expect(sgrAttributesToCss(sgrAttributes), equals('bold fg_blue bg_white'));
+  });
 
-      expect(cssClass, equals('sgr_1 sgr_30 sgr_40'));
+  group("to...", () {
+    late InterConverted validInterConverted;
+    late InterConverted invalidInterConverted;
+
+    InterConverted createValidInterConverted() {
+      final interConverted = InterConverted();
+      interConverted.text = ['R', ' ', 'G'];
+
+      final attributeRed = SgrAttributes()..background = 'fg_red';
+      final attributeGreen = SgrAttributes()..foreground = 'fg_green';
+
+      interConverted.styles = [attributeRed, attributeRed, attributeGreen];
+      return interConverted;
+    }
+
+    InterConverted createInvalidInterConverted() {
+      final interConverted = InterConverted();
+      interConverted.text = ['R', ' ', 'G'];
+
+      final sgrAttributes = SgrAttributes();
+      interConverted.styles = [sgrAttributes];
+      return interConverted;
+    }
+
+    setUp(() {
+      validInterConverted = createValidInterConverted();
+      invalidInterConverted = createInvalidInterConverted();
     });
 
-    test('testToHtmlValid', () {
-      // Prepare test InterConverted object
-      final interConverted = InterConverted()
-        ..text = ['A', 'B'];
+    test('test_to_html_valid', () {
+      final result = toHtml(validInterConverted).outerHtml;
+      final expected =
+          '<div class="line"><span class="fg_red">R </span><span class="fg_green">G</span></div>';
 
-      final sgrAttributes = SgrAttributes()
-        ..style = {'sgr_1', 'sgr_2'}
-        ..foreground = 'sgr_30'
-        ..background = 'sgr_40';
-
-      final sgrAttributes1 = SgrAttributes()
-        ..style = {'sgr_1'}
-        ..foreground = 'sgr_30'
-        ..background = 'sgr_40';
-
-      interConverted.styles = [sgrAttributes, sgrAttributes1];
-
-      final result = toHtml(interConverted);
-
-      expect(result.localName, equals('div'));
-      expect(result.querySelectorAll('span').length, equals(2));
-      expect(result.querySelectorAll('span')[0].text, equals('A'));
-      expect(result.querySelectorAll('span')[0].classes.contains('sgr_30'), isTrue);
+      expect(result, equals(expected));
     });
 
-    
-
-    test('testToStringValid', () {
-      // Prepare test InterConverted object
-      final interConverted = InterConverted()
-        ..text = ['A', 'B'];
-
-      final sgrAttributes = SgrAttributes()
-        ..style = {'sgr_1', 'sgr_2'}
-        ..foreground = 'sgr_30'
-        ..background = 'sgr_40';
-
-      interConverted.styles = [sgrAttributes, sgrAttributes];
-
-      final result = toString(interConverted);
-      expect(result, equals('AB'));
+    test('test_to_html_invalid', () {
+      expect(
+          () => toHtml(invalidInterConverted), throwsA(isA<ArgumentError>()));
     });
 
-    
+    test('test_to_string_valid', () {
+      final result = toString(validInterConverted);
+
+      expect(result, equals('R G'));
+    });
+
+    test('test_to_string_invalid', () {
+      expect(
+          () => toString(invalidInterConverted), throwsA(isA<ArgumentError>()));
+    });
   });
 }
