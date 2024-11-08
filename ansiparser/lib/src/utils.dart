@@ -4,7 +4,7 @@
 /// This module provides utilities used within ansiparser.
 library;
 
-final Map<int, String> sgrMap = {
+const Map<int, String> sgrMap = {
   1: "bold",
   2: "dim",
   3: "italic",
