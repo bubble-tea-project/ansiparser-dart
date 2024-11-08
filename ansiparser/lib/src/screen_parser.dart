@@ -30,7 +30,10 @@ String applyBackspace(String string) {
 
 /// Split the string by ANSI escape sequences.
 List<String> splitByAnsi(String string) {
-  return utils.splitWithDelimiters(string, re_pattern.ansiEscape);
+  var results = utils.splitWithDelimiters(string, re_pattern.ansiEscape);
+
+  // Removes redundant spaces.
+  return results.where((s) => s.isNotEmpty).toList();
 }
 
 class ScreenParser {
@@ -50,13 +53,19 @@ class ScreenParser {
 
   /// Split string by '\x1B[2J'(Erase in Display).
   List<String> _splitByEd(String string) {
-    return utils.splitWithDelimiters(
-        string, re_pattern.eraseDisplayClearScreen);
+    var results =
+        utils.splitWithDelimiters(string, re_pattern.eraseDisplayClearScreen);
+
+    // Removes redundant spaces.
+    return results.where((s) => s.isNotEmpty).toList();
   }
 
   /// Split string by newline("\r\n", "\n", "\r")
   List<String> _splitByNewline(String string) {
-    return utils.splitWithDelimiters(string, RegExp(r'(\r\n|\n|\r)'));
+    var results = utils.splitWithDelimiters(string, RegExp(r'(\r\n|\n|\r)'));
+
+    // Removes redundant spaces.
+    return results.where((s) => s.isNotEmpty).toList();
   }
 
   /// Parse the string only; remove all ANSI sequences.
