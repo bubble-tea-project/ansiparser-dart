@@ -1,6 +1,6 @@
 name: ansiparser
 description: A convenient library for converting ANSI escape sequences into text or HTML.
-version: 1.0.0
+version: 1.0.2
 repository: https://github.com/bubble-tea-project/ansiparser-dart
 
 environment:
