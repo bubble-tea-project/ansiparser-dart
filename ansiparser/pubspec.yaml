@@ -1,17 +1,15 @@
 name: ansiparser
-description: A starting point for Dart libraries or applications.
+description: A convenient library for converting ANSI escape sequences into text or HTML.
 version: 1.0.0
-# repository: https://github.com/my_org/my_repo
+repository: https://github.com/bubble-tea-project/ansiparser-dart
 
 environment:
   sdk: ^3.5.2
 
-# Add regular dependencies here.
 dependencies:
   html: ^0.15.4
-  east_asian_width: ^1.0.1
   collection: ^1.19.1
-  # path: ^1.8.0
+  east_asian_width: ^1.0.1
 
 dev_dependencies:
   lints: ^4.0.0
