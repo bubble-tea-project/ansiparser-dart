@@ -39,6 +39,7 @@ void main() {
 
 
 ## 🔗 Links
+- [AnsiParser Python Version](https://bubble-tea-project.github.io/ansiparser/)
 - [AnsiParser Documentation (Python)](https://bubble-tea-project.github.io/ansiparser/)
 
 
