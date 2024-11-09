@@ -39,11 +39,14 @@ void main() {
 
 
 ## 🔗 Links
+- [AnsiParser Python Version](https://github.com/bubble-tea-project/ansiparser)
 - [AnsiParser Documentation (Python)](https://bubble-tea-project.github.io/ansiparser/)
 
 
 ## 📜 License
 [![GitHub License](https://img.shields.io/github/license/bubble-tea-project/ansiparser-dart)](https://github.com/bubble-tea-project/ansiparser-dart/blob/main/LICENSE)
+
+
 
 
 
